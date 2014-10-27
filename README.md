@@ -1,7 +1,7 @@
 runfs
 =====
 
-Runfs is a self-cleaning filesystem that allows a process to store temporary state in the filesystem over the course of its lifetime.  Once it dies, the filesystem removes its data.
+Runfs is a self-cleaning in-RAM filesystem that allows a process to store temporary state in the filesystem over the course of its lifetime.  Once it dies, the filesystem removes its data.
 
 Features
 --------
