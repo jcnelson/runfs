@@ -18,7 +18,6 @@
 
 #include "runfs.h"
 
-// create a PID file
 int runfs_create( struct fskit_core* core, struct fskit_match_group* grp, struct fskit_entry* fent, mode_t mode, void** inode_data, void** handle_data ) {
    
    fskit_debug("runfs_create(%s) from %d\n", grp->path, fskit_fuse_get_pid() );
@@ -93,7 +92,7 @@ int runfs_mkdir( struct fskit_core* core, struct fskit_match_group* grp, struct 
    return 0;
 }
 
-// read a PID file 
+
 int runfs_read( struct fskit_core* core, struct fskit_match_group* grp, struct fskit_entry* fent, char* buf, size_t buflen, off_t offset, void* handle_data ) {
    
    fskit_debug("runfs_read(%s) from %d\n", grp->path, fskit_fuse_get_pid() );
@@ -132,8 +131,7 @@ int runfs_read( struct fskit_core* core, struct fskit_match_group* grp, struct f
    return num_read;
 }
 
-// write a PID file
-// fails if the file was already written 
+
 int runfs_write( struct fskit_core* core, struct fskit_match_group* grp, struct fskit_entry* fent, char* buf, size_t buflen, off_t offset, void* handle_data ) {
    
    fskit_debug("runfs_write(%s) from %d\n", grp->path, fskit_fuse_get_pid() );
@@ -182,7 +180,6 @@ int runfs_write( struct fskit_core* core, struct fskit_match_group* grp, struct 
 }
 
 
-// unlink
 int runfs_detach( struct fskit_core* core, struct fskit_match_group* grp, struct fskit_entry* fent, void* inode_data ) {
    
    fskit_debug("runfs_detach(%s) from %d\n", grp->path, fskit_fuse_get_pid() );
