@@ -145,7 +145,41 @@ int runfs_inode_init( struct runfs_inode* inode, pid_t pid ) {
    inode->proc_path = proc_path;
    inode->proc_sha256 = proc_sha256;
    inode->proc_size = sb.st_size;
+   inode->proc_mtime.tv_sec = sb.st_mtim.tv_sec;
+   inode->proc_mtime.tv_nsec = sb.st_mtim.tv_nsec;
    
+   return 0;
+}
+
+
+// verify that a given process's binary has not been modified 
+// return 1 if it has been modified, or does not exist
+// return 0 if it has not been modified
+// return negative on failure 
+int runfs_inode_is_proc_modified( struct runfs_inode* inode ) {
+   
+   struct stat sb;
+   int rc = 0;
+   
+   rc = stat( inode->proc_path, &sb );
+   if( rc != 0 ) {
+      rc = -errno;
+      
+      if( rc == -ENOENT ) {
+         // modified--doesn't exist 
+         return 1;
+      }
+      else {
+         return rc;
+      }
+   }
+   
+   if( sb.st_mtim.tv_sec != inode->proc_mtime.tv_sec || sb.st_mtim.tv_nsec != inode->proc_mtime.tv_nsec ) {
+      // modified 
+      return 1;
+   }
+   
+   // not modified
    return 0;
 }
 
@@ -169,6 +203,8 @@ int runfs_inode_is_created_by_proc( struct runfs_inode* inode, pid_t pid ) {
    
    if( inode->pid == cmp.pid &&
        inode->proc_size == cmp.proc_size &&
+       inode->proc_mtime.tv_sec == cmp.proc_mtime.tv_sec &&
+       inode->proc_mtime.tv_nsec == cmp.proc_mtime.tv_nsec &&
        strcmp(inode->proc_path, cmp.proc_path) == 0 &&
        strcmp(inode->proc_sha256, cmp.proc_sha256) == 0 ) {
       
@@ -185,7 +221,8 @@ int runfs_inode_is_created_by_proc( struct runfs_inode* inode, pid_t pid ) {
 
 
 // verify that an inode is still valid.
-// that is, there's a process with the given PID running, and it's an instance of the same program that created it
+// that is, there's a process with the given PID running, and it's an instance of the same program that created it.
+// to speed this up, only check the hash of the process binary if the modtime has changed
 // return 1 if valid 
 // return 0 if not valid 
 // return negative on error
@@ -202,13 +239,29 @@ int runfs_inode_is_valid( struct runfs_inode* inode, pid_t pid ) {
       return 0;
    }
    
-   rc = runfs_inode_is_created_by_proc( inode, pid );
-   if( rc < 0 ) {
-      return rc;
+   if( inode->check_hash_always ) {
+      
+      // check everything
+      rc = runfs_inode_is_created_by_proc( inode, pid );
+      if( rc < 0 ) {
+         return rc;
+      }
+      
+      if( rc == 0 ) {
+         return 0;
+      }
    }
-   
-   if( rc == 0 ) {
-      return 0;
+   else {
+      
+      // check only the modtime
+      rc = runfs_inode_is_proc_modified( inode );
+      if( rc < 0 ) {
+         return rc;
+      }
+      
+      if( rc > 0 ) {
+         return 0;
+      }
    }
    
    return 1;

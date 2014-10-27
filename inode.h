@@ -29,6 +29,8 @@
 struct runfs_inode {
    pid_t pid;                   // the pid of the process
    char* proc_path;             // path to the process.  set to NULL if not initialized   
+   
+   struct timespec proc_mtime;  // modtime of the process.
    char* proc_sha256;           // sha256 of the process image.  set to NULL if not initialized
    off_t proc_size;             // size of the process binary
    
@@ -37,6 +39,7 @@ struct runfs_inode {
    size_t contents_len;         // size of the contents buffer
    
    bool deleted;                // if true, then consider the associated fskit entry deleted
+   bool check_hash_always;      // if true, always check the hash of the creator process when verifying that it's still valid
 };
 
 extern "C" {

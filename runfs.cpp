@@ -206,15 +206,8 @@ int runfs_stat( struct fskit_core* core, struct fskit_match_group* grp, struct f
    int rc = 0;
    struct runfs_state* state = (struct runfs_state*)fskit_core_get_user_data( core );
    struct runfs_inode* inode = (struct runfs_inode*)fskit_entry_get_user_data( fent );
-   pid_t calling_tid = fskit_fuse_get_pid();
    
    if( inode == NULL ) {
-      return 0;
-   }
-   
-   // if the filesystem itself is stating the file, then it exists
-   if( calling_tid == state->tid ) {
-      fskit_debug("the filesystem is stating (%d)\n", state->tid );
       return 0;
    }
    
@@ -254,7 +247,6 @@ int runfs_readdir( struct fskit_core* core, struct fskit_match_group* grp, struc
    struct fskit_entry* child = NULL;
    struct runfs_inode* inode = NULL;
    struct runfs_state* state = (struct runfs_state*)fskit_core_get_user_data( core );
-   pid_t calling_tid = fskit_fuse_get_pid();
    
    // entries to omit in the listing
    vector<int> omitted_idx;
@@ -263,12 +255,6 @@ int runfs_readdir( struct fskit_core* core, struct fskit_match_group* grp, struc
    vector<char*> to_remove_paths;
    vector<uint64_t> to_remove_inodes;
    vector<int> to_remove_types;
-   
-   // if the filesystem is reading the directory, then no filtering shall be done 
-   if( calling_tid == state->tid ) {
-      fskit_debug("the filesystem is readdir'ing (%d)\n", state->tid );
-      return 0;
-   }
    
    for( unsigned int i = 0; i < num_dirents; i++ ) {
       
@@ -363,13 +349,6 @@ int main( int argc, char** argv ) {
    struct fskit_fuse_state state;
    struct runfs_state runfs;
    struct fskit_core* core = NULL;
-   char* mountpoint = argv[ argc - 1 ];
-   
-   rc = runfs_state_init( &runfs, mountpoint );
-   if( rc != 0 ) {
-      fprintf(stderr, "runfs_state_init(%s) rc = %d\n", mountpoint, rc );
-      exit(1);
-   }
    
    rc = fskit_fuse_init( &state, &runfs );
    if( rc != 0 ) {
@@ -381,6 +360,12 @@ int main( int argc, char** argv ) {
    fskit_fuse_setting_enable( &state, FSKIT_FUSE_SET_FS_ACCESS );
    
    core = fskit_fuse_get_core( &state );
+   
+   rc = runfs_state_init( &runfs, core );
+   if( rc != 0 ) {
+      fprintf(stderr, "runfs_state_init() rc = %d\n", rc );
+      exit(1);
+   }
    
    // add handlers.  reads and writes must happen sequentially, since we seek and then perform I/O
    // NOTE: FSKIT_ROUTE_ANY matches any path, and is a macro for the regex "/([^/]+[/]*)+"
