@@ -185,7 +185,7 @@ int runfs_inode_is_created_by_proc( struct runfs_inode* inode, pid_t pid ) {
 
 
 // verify that an inode is still valid.
-// that is, there's a process with the given PID running, and it's the same process that created it.
+// that is, there's a process with the given PID running, and it's an instance of the same program that created it
 // return 1 if valid 
 // return 0 if not valid 
 // return negative on error

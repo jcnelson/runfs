@@ -18,9 +18,16 @@
 
 #include "os.h"
 #include "fskit/fskit.h"
+#include "util.h"
 
 #ifdef _BUILD_LINUX
 // Linux-specific implementation 
+
+#include <sys/syscall.h>
+
+pid_t gettid() {
+   return syscall(__NR_gettid);
+}
 
 // get the path to this process's binary
 int runfs_os_get_proc_path( pid_t pid, char** ret_proc_path ) {
@@ -104,5 +111,86 @@ int runfs_os_is_proc_running( pid_t pid ) {
    return rc;
 }
 
+// get the identifier of the schedulable entity that issued a request to FUSE.
+// On Linux, this is the task ID.
+pid_t runfs_os_get_sched_id() {
+   return gettid();
+}
+
+/*
+// get the actual PID, given the FUSE-given TID 
+// on Linux, this is the "PPid:" field in /proc/$tid/status
+// return 0 on success and set *ret_pid 
+// return negative on error
+int runfs_os_fuse_tid_to_pid( pid_t tid, pid_t* ret_pid ) {
+   
+   int rc = 0;
+   int fd = 0;
+   pid_t ppid = 0;
+   ssize_t nr = 0;
+   size_t num_read = 0;
+   size_t buflen = 4 * NAME_MAX + 4;  // big enough to hold the prefix of /proc/tid/stat
+   char* buf = NULL;
+   char* tok = NULL;
+   char* buftmp = NULL;
+   char* toktmp = NULL;
+   char* tmp = NULL;
+   
+   char proc_path[PATH_MAX+1];
+   memset( proc_path, 0, PATH_MAX+1 );
+   
+   sprintf( proc_path, "/proc/%d/stat", tid );
+   
+   buf = RUNFS_CALLOC( char, buflen );
+   if( buf == NULL ) {
+      return -ENOMEM;
+   }
+   
+   fd = open( proc_path, O_RDONLY );
+   if( fd < 0 ) {
+      rc = -errno;
+      return rc;
+   }
+   
+   while( num_read < buflen ) {
+      
+      nr = read( fd, buf + nr, buflen - nr );
+      if( nr < 0 ) {
+         rc = -errno;
+         
+         if( rc == -EINTR ) {
+            // only interrupted. try again 
+            continue;
+         }
+         
+         break;
+      }
+      if( nr == 0 ) {
+         break;
+      }
+      
+      num_read += nr;
+   }
+   
+   close( fd );
+   
+   // find tgid--it's the fourth token (see proc(5))
+   buftmp = buf;
+   for( int i = 0; i < 4; i++ ) {
+      tok = strtok_r( buftmp, " \t", &toktmp );
+      buftmp = NULL;
+   }
+   
+   ppid = (pid_t)strtol( tok, &tmp, 10 );
+   if( tmp == NULL ) {
+      return -EIO;
+   }
+   
+   free( buf );
+   *ret_pid = ppid;
+   
+   return rc;
+}
+*/
 
 #endif

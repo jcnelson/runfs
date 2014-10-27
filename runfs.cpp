@@ -21,13 +21,17 @@
 // create a PID file
 int runfs_create( struct fskit_core* core, struct fskit_match_group* grp, struct fskit_entry* fent, mode_t mode, void** inode_data, void** handle_data ) {
    
-   fskit_debug("runfs_create(%s)\n", grp->path );
+   fskit_debug("runfs_create(%s) from %d\n", grp->path, fskit_fuse_get_pid() );
    
    int rc = 0;
-   pid_t calling_pid = fskit_fuse_get_pid();
+   pid_t calling_tid = fskit_fuse_get_pid();
    struct runfs_inode* inode = RUNFS_CALLOC( struct runfs_inode, 1 );
    
-   rc = runfs_inode_init( inode, calling_pid );
+   if( inode == NULL ) {
+      return -ENOMEM;
+   }
+   
+   rc = runfs_inode_init( inode, calling_tid );
    if( rc != 0 ) {
       // phantom process?
       free( inode );
@@ -42,13 +46,17 @@ int runfs_create( struct fskit_core* core, struct fskit_match_group* grp, struct
 // track sockets, etc.
 int runfs_mknod( struct fskit_core* core, struct fskit_match_group* grp, struct fskit_entry* fent, mode_t mode, dev_t dev, void** inode_data ) {
    
-   fskit_debug("runfs_mknod(%s)\n", grp->path );
+   fskit_debug("runfs_mknod(%s) from %d\n", grp->path, fskit_fuse_get_pid() );
    
    int rc = 0;
-   pid_t calling_pid = fskit_fuse_get_pid();
+   pid_t calling_tid = fskit_fuse_get_pid();
    struct runfs_inode* inode = RUNFS_CALLOC( struct runfs_inode, 1 );
    
-   rc = runfs_inode_init( inode, calling_pid );
+   if( inode == NULL ) {
+      return -ENOMEM;
+   }
+   
+   rc = runfs_inode_init( inode, calling_tid );
    if( rc != 0 ) {
       // phantom process?
       free( inode );
@@ -63,13 +71,17 @@ int runfs_mknod( struct fskit_core* core, struct fskit_match_group* grp, struct 
 // track directories 
 int runfs_mkdir( struct fskit_core* core, struct fskit_match_group* grp, struct fskit_entry* dent, mode_t mode, void** inode_data ) {
    
-   fskit_debug("runfs_mkdir(%s)\n", grp->path );
+   fskit_debug("runfs_mkdir(%s) from %d\n", grp->path, fskit_fuse_get_pid() );
    
    int rc = 0;
-   pid_t calling_pid = fskit_fuse_get_pid();
+   pid_t calling_tid = fskit_fuse_get_pid();
    struct runfs_inode* inode = RUNFS_CALLOC( struct runfs_inode, 1 );
    
-   rc = runfs_inode_init( inode, calling_pid );
+   if( inode == NULL ) {
+      return -ENOMEM;
+   }
+   
+   rc = runfs_inode_init( inode, calling_tid );
    if( rc != 0 ) {
       // phantom process?
       free( inode );
@@ -84,7 +96,7 @@ int runfs_mkdir( struct fskit_core* core, struct fskit_match_group* grp, struct 
 // read a PID file 
 int runfs_read( struct fskit_core* core, struct fskit_match_group* grp, struct fskit_entry* fent, char* buf, size_t buflen, off_t offset, void* handle_data ) {
    
-   fskit_debug("runfs_read(%s)\n", grp->path );
+   fskit_debug("runfs_read(%s) from %d\n", grp->path, fskit_fuse_get_pid() );
    
    struct runfs_inode* inode = (struct runfs_inode*)fskit_entry_get_user_data( fent );
    int num_read = 0;
@@ -124,7 +136,7 @@ int runfs_read( struct fskit_core* core, struct fskit_match_group* grp, struct f
 // fails if the file was already written 
 int runfs_write( struct fskit_core* core, struct fskit_match_group* grp, struct fskit_entry* fent, char* buf, size_t buflen, off_t offset, void* handle_data ) {
    
-   fskit_debug("runfs_write(%s)\n", grp->path );
+   fskit_debug("runfs_write(%s) from %d\n", grp->path, fskit_fuse_get_pid() );
    
    struct runfs_inode* inode = (struct runfs_inode*)fskit_entry_get_user_data( fent );
    size_t new_contents_len = inode->contents_len;
@@ -173,7 +185,7 @@ int runfs_write( struct fskit_core* core, struct fskit_match_group* grp, struct 
 // unlink
 int runfs_detach( struct fskit_core* core, struct fskit_match_group* grp, struct fskit_entry* fent, void* inode_data ) {
    
-   fskit_debug("runfs_detach(%s)\n", grp->path );
+   fskit_debug("runfs_detach(%s) from %d\n", grp->path, fskit_fuse_get_pid() );
    
    struct runfs_inode* inode = (struct runfs_inode*)inode_data;
    
@@ -194,14 +206,15 @@ int runfs_stat( struct fskit_core* core, struct fskit_match_group* grp, struct f
    int rc = 0;
    struct runfs_state* state = (struct runfs_state*)fskit_core_get_user_data( core );
    struct runfs_inode* inode = (struct runfs_inode*)fskit_entry_get_user_data( fent );
-   pid_t calling_pid = fskit_fuse_get_pid();
+   pid_t calling_tid = fskit_fuse_get_pid();
    
    if( inode == NULL ) {
       return 0;
    }
    
    // if the filesystem itself is stating the file, then it exists
-   if( calling_pid == getpid() ) {
+   if( calling_tid == state->tid ) {
+      fskit_debug("the filesystem is stating (%d)\n", state->tid );
       return 0;
    }
    
@@ -213,7 +226,7 @@ int runfs_stat( struct fskit_core* core, struct fskit_match_group* grp, struct f
    if( rc < 0 ) {
       
       fskit_error( "runfs_inode_is_valid(path=%s, pid=%d) rc = %d\n", inode->proc_path, inode->pid, rc );
-      return rc;
+      return -EIO;
    }
    
    if( rc == 0 ) {
@@ -235,13 +248,13 @@ int runfs_stat( struct fskit_core* core, struct fskit_match_group* grp, struct f
 // stat each node in it, and remove ones whose creating process has died
 int runfs_readdir( struct fskit_core* core, struct fskit_match_group* grp, struct fskit_entry* fent, struct fskit_dir_entry** dirents, size_t num_dirents ) {
    
-   fskit_debug("runfs_readdir(%s, %zu)\n", grp->path, num_dirents );
+   fskit_debug("runfs_readdir(%s, %zu) from %d\n", grp->path, num_dirents, fskit_fuse_get_pid() );
    
    int rc = 0;
    struct fskit_entry* child = NULL;
    struct runfs_inode* inode = NULL;
    struct runfs_state* state = (struct runfs_state*)fskit_core_get_user_data( core );
-   pid_t calling_pid = fskit_fuse_get_pid();
+   pid_t calling_tid = fskit_fuse_get_pid();
    
    // entries to omit in the listing
    vector<int> omitted_idx;
@@ -252,7 +265,8 @@ int runfs_readdir( struct fskit_core* core, struct fskit_match_group* grp, struc
    vector<int> to_remove_types;
    
    // if the filesystem is reading the directory, then no filtering shall be done 
-   if( calling_pid == getpid() ) {
+   if( calling_tid == state->tid ) {
+      fskit_debug("the filesystem is readdir'ing (%d)\n", state->tid );
       return 0;
    }
    
@@ -295,6 +309,8 @@ int runfs_readdir( struct fskit_core* core, struct fskit_match_group* grp, struc
          
          fskit_error( "runfs_inode_is_valid(path=%s, pid=%d) rc = %d\n", inode->proc_path, inode->pid, valid );
          fskit_entry_unlock( child );
+         
+         rc = -EIO;
          break;
       }
       
@@ -371,6 +387,18 @@ int main( int argc, char** argv ) {
    rh = fskit_route_create( core, FSKIT_ROUTE_ANY, runfs_create, FSKIT_CONCURRENT );
    if( rh < 0 ) {
       fprintf(stderr, "fskit_route_create(%s) rc = %d\n", FSKIT_ROUTE_ANY, rh );
+      exit(1);
+   }
+   
+   rh = fskit_route_mkdir( core, FSKIT_ROUTE_ANY, runfs_mkdir, FSKIT_CONCURRENT );
+   if( rh < 0 ) {
+      fprintf(stderr, "fskit_route_mkdir(%s) rc = %d\n", FSKIT_ROUTE_ANY, rh );
+      exit(1);
+   }
+   
+   rh = fskit_route_mknod( core, FSKIT_ROUTE_ANY, runfs_mknod, FSKIT_CONCURRENT );
+   if( rh < 0 ) {
+      fprintf(stderr, "fskit_route_mknod(%s) rc = %d\n", FSKIT_ROUTE_ANY, rh );
       exit(1);
    }
    

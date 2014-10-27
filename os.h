@@ -62,7 +62,10 @@ using namespace std;
 extern "C" {
    
 int runfs_os_get_proc_path( pid_t pid, char** ret_proc_path );
-int runfs_os_is_proc_running( pid_t );
+int runfs_os_is_proc_running( pid_t pid );
+pid_t runfs_os_get_sched_id();
+// int runfs_os_fuse_tid_to_pid( pid_t tid, pid_t* ret_pid );
+
 
 }
 
