@@ -6,7 +6,6 @@ Runfs is a self-cleaning filesystem that allows a process to store temporary sta
 Features
 --------
 * **Automatic lifecycle management**.  Daemons don't have to clean up after themselves if they crash.
-* **inotify/kqueue friendly**.  Other processes can watch runfs-managed files and get informed when the owning process dies.
 * **Portable design**.  OS-specific methods are cleanly separated from the OS-agnostic logic.
 
 Dependencies
