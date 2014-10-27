@@ -12,13 +12,15 @@ Building
 ---------
 
 To build:
-    $ make
+
+        $ make
 
 Installing
 ----------
 
 To install:
-    $ sudo make install
+
+        $ sudo make install
 
 By default, it will be installed to /usr/local/bin
 
@@ -26,6 +28,7 @@ Running
 -------
 
 To run:
-    $ ./runfs /path/to/mountpoint
 
-It takes FUSE arguments like -f for "foreground", etc.  See 'fuse(8).'
+        $ ./runfs /path/to/mountpoint
+
+It takes FUSE arguments like -f for "foreground", etc.  See `fuse(8).`
