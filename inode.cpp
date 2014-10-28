@@ -174,7 +174,10 @@ int runfs_inode_is_proc_modified( struct runfs_inode* inode ) {
       }
    }
    
-   if( sb.st_mtim.tv_sec != inode->proc_mtime.tv_sec || sb.st_mtim.tv_nsec != inode->proc_mtime.tv_nsec ) {
+   if( sb.st_mtim.tv_sec != inode->proc_mtime.tv_sec ||
+       sb.st_mtim.tv_nsec != inode->proc_mtime.tv_nsec || 
+       sb.st_size != inode->proc_size ) {
+      
       // modified 
       return 1;
    }
@@ -260,6 +263,7 @@ int runfs_inode_is_valid( struct runfs_inode* inode, pid_t pid ) {
       }
       
       if( rc > 0 ) {
+         // modtime and/or size changed
          return 0;
       }
    }
