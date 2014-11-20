@@ -37,48 +37,64 @@ int runfs_os_get_proc_path( pid_t pid, char** ret_proc_path ) {
    char proc_path[PATH_MAX+1];
    char bin_path[PATH_MAX+1];
    struct stat sb;
+   int fd = 0;
+   ssize_t nr = 0;
+   static size_t deleted_len = strlen( " (deleted)" );
    
    memset( proc_path, 0, PATH_MAX+1 );
    memset( bin_path, 0, PATH_MAX+1 );
    
    sprintf( proc_path, "/proc/%d/exe", pid );
    
-   while( true ) {
-
-      // resolve the symlink to the process binary 
-      ssize_t nr = readlink( proc_path, bin_path, PATH_MAX );
-      if( nr < 0 ) {
+   // open the process binary, if we can 
+   fd = open( proc_path, O_RDONLY );
+   if( fd < 0 ) {
       
-         rc = -errno;
-         fskit_error("readlink(%s) rc = %d\n", proc_path, rc );
-         return rc;
-      }
+      rc = -errno;
+      fskit_error("open(%s) rc = %d\n", proc_path, rc );
+      return rc;
+   }
+   
+   // verify that it isn't deleted
+   nr = readlink( proc_path, bin_path, PATH_MAX );
+   if( nr < 0 ) {
+   
+      rc = -errno;
+      close( fd );
       
-      rc = stat( bin_path, &sb );
-      if( rc < 0 ) {
-         
-         rc = -errno;
-         fskit_error("stat(%s) rc = %d\n", proc_path, rc );
-         return rc;
-      }
+      fskit_error("readlink(%s) rc = %d\n", proc_path, rc );
       
-      if( S_ISREG( sb.st_mode ) ) {
-         break;
-      }
+      return rc;
+   }
+   
+   // on Linux, if the bin_path ends in " (deleted)", we're guaranteed that this binary no longer exists.
+   if( strlen( bin_path ) > strlen( " (deleted)") && strcmp( bin_path + strlen(bin_path) - deleted_len, " (deleted)" ) == 0 ) {
       
-      else if( S_ISLNK( sb.st_mode ) ) {
-         
-         // try again 
-         memcpy( proc_path, bin_path, PATH_MAX+1 );
-         memset( bin_path, 0, PATH_MAX+1 );
-         continue;
-      }
-      else {
-         
-         // not a process binary 
-         fskit_error("%s is not an executable\n", bin_path );
-         return -EPERM;
-      }
+      rc = -ENOENT;
+      close( fd );
+      
+      fskit_error("%s\n", proc_path);
+      return rc;
+   }
+   
+   rc = fstat( fd, &sb );
+   
+   if( rc < 0 ) {
+      
+      rc = -errno;
+      close( fd );
+      
+      fskit_error("stat(%s) rc = %d\n", proc_path, rc );
+      return rc;
+   }
+   
+   close( fd );
+   
+   if( !S_ISREG( sb.st_mode ) ) {
+      
+      // not a process binary 
+      fskit_error("%s is not a regular file\n", bin_path );
+      return -EPERM;
    }
    
    *ret_proc_path = strdup( proc_path );
