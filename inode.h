@@ -33,6 +33,7 @@ struct runfs_inode {
    struct timespec proc_mtime;  // modtime of the process.
    char* proc_sha256;           // sha256 of the process image.  set to NULL if not initialized
    off_t proc_size;             // size of the process binary
+   ino_t proc_inode;            // inode number of the binary
    
    char* contents;              // contents of the file
    off_t size;                  // size of the file

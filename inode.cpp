@@ -147,12 +147,13 @@ int runfs_inode_init( struct runfs_inode* inode, pid_t pid ) {
    inode->proc_size = sb.st_size;
    inode->proc_mtime.tv_sec = sb.st_mtim.tv_sec;
    inode->proc_mtime.tv_nsec = sb.st_mtim.tv_nsec;
+   inode->proc_inode = sb.st_ino;
    
    return 0;
 }
 
 
-// verify that a given process's binary has not been modified 
+// verify that a given process's binary has not been modified or recreated
 // return 1 if it has been modified, or does not exist
 // return 0 if it has not been modified
 // return negative on failure 
@@ -176,6 +177,7 @@ int runfs_inode_is_proc_modified( struct runfs_inode* inode ) {
    
    if( sb.st_mtim.tv_sec != inode->proc_mtime.tv_sec ||
        sb.st_mtim.tv_nsec != inode->proc_mtime.tv_nsec || 
+       sb.st_ino != inode->proc_inode ||
        sb.st_size != inode->proc_size ) {
       
       // modified 
@@ -208,6 +210,7 @@ int runfs_inode_is_created_by_proc( struct runfs_inode* inode, pid_t pid ) {
        inode->proc_size == cmp.proc_size &&
        inode->proc_mtime.tv_sec == cmp.proc_mtime.tv_sec &&
        inode->proc_mtime.tv_nsec == cmp.proc_mtime.tv_nsec &&
+       inode->proc_inode == cmp.proc_inode &&
        strcmp(inode->proc_path, cmp.proc_path) == 0 &&
        strcmp(inode->proc_sha256, cmp.proc_sha256) == 0 ) {
       

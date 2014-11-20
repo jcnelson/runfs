@@ -318,7 +318,7 @@ int runfs_readdir( struct fskit_core* core, struct fskit_match_group* grp, struc
       fskit_entry_unlock( child );
    }
    
-   // rmeove any invalid nodes (including invalid trees)
+   // remove any invalid nodes (including invalid trees)
    for( unsigned int i = 0; i < to_remove_paths.size(); i++ ) {
       
       runfs_state_sched_delete( state, to_remove_paths[i], to_remove_inodes[i], to_remove_types[i] == FSKIT_ENTRY_TYPE_DIR );
