@@ -30,7 +30,7 @@ int runfs_create( struct fskit_core* core, struct fskit_match_group* grp, struct
       return -ENOMEM;
    }
    
-   rc = runfs_inode_init( inode, calling_tid );
+   rc = runfs_inode_init( inode, calling_tid, RUNFS_VERIFY_DEFAULT );
    if( rc != 0 ) {
       // phantom process?
       free( inode );
@@ -55,7 +55,7 @@ int runfs_mknod( struct fskit_core* core, struct fskit_match_group* grp, struct 
       return -ENOMEM;
    }
    
-   rc = runfs_inode_init( inode, calling_tid );
+   rc = runfs_inode_init( inode, calling_tid, RUNFS_VERIFY_DEFAULT );
    if( rc != 0 ) {
       // phantom process?
       free( inode );
@@ -80,7 +80,7 @@ int runfs_mkdir( struct fskit_core* core, struct fskit_match_group* grp, struct 
       return -ENOMEM;
    }
    
-   rc = runfs_inode_init( inode, calling_tid );
+   rc = runfs_inode_init( inode, calling_tid, RUNFS_VERIFY_DEFAULT );
    if( rc != 0 ) {
       // phantom process?
       free( inode );

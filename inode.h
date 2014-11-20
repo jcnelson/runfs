@@ -25,27 +25,36 @@
 
 #define RUNFS_PIDFILE_BUF_LEN   50
 
+#define RUNFS_VERIFY_INODE      0x1
+#define RUNFS_VERIFY_MTIME      0x2
+#define RUNFS_VERIFY_HASH       0x4
+#define RUNFS_VERIFY_SIZE       0x8
+
+#define RUNFS_VERIFY_ALL        0xF
+
+#define RUNFS_VERIFY_DEFAULT    (RUNFS_VERIFY_INODE | RUNFS_VERIFY_MTIME | RUNFS_VERIFY_SIZE)
+
 // information for an inode
 struct runfs_inode {
-   pid_t pid;                   // the pid of the process
-   char* proc_path;             // path to the process.  set to NULL if not initialized   
+   pid_t pid;                                           // the pid of the process
+   char* proc_path;                                     // path to the process.  set to NULL if not initialized   
    
-   struct timespec proc_mtime;  // modtime of the process.
-   char* proc_sha256;           // sha256 of the process image.  set to NULL if not initialized
-   off_t proc_size;             // size of the process binary
-   ino_t proc_inode;            // inode number of the binary
+   struct timespec proc_mtime;                          // modtime of the process.
+   unsigned char proc_sha256[SHA256_DIGEST_LENGTH];     // sha256 of the process image.  Ignored if the RUNFS_VERIFY_HASH bit is not set in verify_discipline
+   off_t proc_size;                                     // size of the process binary
+   ino_t proc_inode;                                    // inode number of the binary
    
-   char* contents;              // contents of the file
-   off_t size;                  // size of the file
-   size_t contents_len;         // size of the contents buffer
+   char* contents;                                      // contents of the file
+   off_t size;                                          // size of the file
+   size_t contents_len;                                 // size of the contents buffer
    
-   bool deleted;                // if true, then consider the associated fskit entry deleted
-   bool check_hash_always;      // if true, always check the hash of the creator process when verifying that it's still valid
+   bool deleted;                                        // if true, then consider the associated fskit entry deleted
+   int verify_discipline;                               // bit flags of RUNFS_VERIFY_* that control how strict we are in verifying the accessing process
 };
 
 extern "C" {
 
-int runfs_inode_init( struct runfs_inode* inode, pid_t pid );
+int runfs_inode_init( struct runfs_inode* inode, pid_t pid, int verify_discipline );
 int runfs_inode_free( struct runfs_inode* inode );
 int runfs_inode_is_valid( struct runfs_inode* inode, pid_t pid );
 
