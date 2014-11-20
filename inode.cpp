@@ -190,6 +190,14 @@ int runfs_inode_is_created_by_proc( struct runfs_inode* inode, pid_t pid, int ve
       }
    }
    
+   if( verify_discipline & RUNFS_VERIFY_PATH ) {
+      if( strcmp(proc_path, inode->proc_path) != 0 ) {
+         
+         free( proc_path );
+         return 0;
+      }
+   }
+   
    if( verify_discipline & RUNFS_VERIFY_HASH ) {
       
       // first get the hash...
