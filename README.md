@@ -12,7 +12,7 @@ Dependencies
 ------------
 * OpenSSL (for SHA256)
 * [fskit](https://github.com/jcnelson/fskit)
-* [libpstat](https://github.com/jcnelson/pstat)
+* [libpstat](https://github.com/jcnelson/libpstat)
 
 Building
 ---------
