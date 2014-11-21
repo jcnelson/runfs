@@ -18,131 +18,22 @@
 
 #include "inode.h"
 
-// get the sha256 of the data referred to by file descriptor.
-// new_checksum must be at least SHA256_DIGEST_LENGTH bytes long
-// read to EOF 
-static int sha256_fd( int fd, unsigned char* new_checksum ) {
-   
-   SHA256_CTX context;
-   unsigned char buf[32768];
-   ssize_t num_read = 1;
-   int rc = 0;
-   
-   SHA256_Init( &context );
-   
-   while( num_read > 0 ) {
-      
-      num_read = read( fd, buf, 32768 );
-      
-      if( num_read < 0 ) {
-         
-         rc = -errno;
-         
-         fskit_error("sha256_file: I/O error reading FD %d, errno=%d\n", fd, rc );
-         
-         SHA256_Final( new_checksum, &context );
-         
-         return rc;
-      }
-      
-      SHA256_Update( &context, buf, num_read );
-   }
-   
-   SHA256_Final( new_checksum, &context );
-   
-   return 0;
-}
-
-
-// get the (printable, null-terminated) sha256 of a path  
-// ret_sha256 must be at least SHA256_DIGEST_LENGTH bytes long
-int runfs_sha256( char const* bin_path, unsigned char* ret_sha256 ) {
-   
-   int fd = 0;
-   int rc = 0;
-   
-   // sha256 the binary...
-   fd = open( bin_path, O_RDONLY );
-   if( fd < 0 ) {
-      
-      rc = -errno;
-      fskit_error("open(%s) rc = %d\n", bin_path, rc );
-      return rc;
-   }
-   
-   rc = sha256_fd( fd, ret_sha256 );
-   if( rc != 0 ) {
-      
-      fskit_error("sha256_fd(%d) rc = %d\n", fd, rc );
-      close( fd );
-      
-      return -EPERM;
-   }
-   
-   close( fd );
-   
-   return rc;
-}
-
-
-// stat a process by pid.
-int runfs_stat_proc_by_pid( pid_t pid, char** ret_proc_path, struct stat* sb ) {
-   
-   char* proc_path = NULL;
-   int rc = 0;
-   
-   rc = runfs_os_get_proc_path( pid, &proc_path );
-   if( rc != 0 ) {
-      return rc;
-   }
-   
-   rc = stat( proc_path, sb );
-   if( rc != 0 ) {
-      
-      rc = -errno;
-      free( proc_path );
-      return rc;
-   }
-   
-   *ret_proc_path = proc_path;
-   return 0;
-}
-
-
-
 // set up a pidfile inode 
 int runfs_inode_init( struct runfs_inode* inode, pid_t pid, int verify_discipline ) {
    
-   char* proc_path = NULL;
-   struct stat sb;
    int rc = 0;
+   int flags = 0;
    
-   if( inode->proc_path != NULL ) {
-      return -EINVAL;
+   if( verify_discipline & RUNFS_VERIFY_HASH ) {
+      flags |= PSTAT_HASH;
    }
    
-   rc = runfs_stat_proc_by_pid( pid, &proc_path, &sb );
+   rc = pstat( pid, &inode->ps, flags );
    if( rc != 0 ) {
       return rc;
    }
    
-   if( verify_discipline & RUNFS_VERIFY_HASH ) {
-      // only compute this if we have to (since it's slow)
-      rc = runfs_sha256( proc_path, inode->proc_sha256 );
-      if( rc != 0 ) {
-      
-         free( proc_path );
-         return rc;
-      }
-   }
-   
    inode->verify_discipline = verify_discipline;
-   inode->pid = pid;
-   inode->proc_path = proc_path;
-   inode->proc_size = sb.st_size;
-   inode->proc_mtime.tv_sec = sb.st_mtim.tv_sec;
-   inode->proc_mtime.tv_nsec = sb.st_mtim.tv_nsec;
-   inode->proc_inode = sb.st_ino;
    
    return 0;
 }
@@ -152,66 +43,45 @@ int runfs_inode_init( struct runfs_inode* inode, pid_t pid, int verify_disciplin
 // return 0 if not equal 
 // return 1 if equal 
 // return negative on error
-int runfs_inode_is_created_by_proc( struct runfs_inode* inode, pid_t pid, int verify_discipline ) {
+int runfs_inode_is_created_by_proc( struct runfs_inode* inode, struct pstat* proc_stat, int verify_discipline ) {
    
-   int rc = 0;
-   char* proc_path = NULL;
-   unsigned char proc_sha256[SHA256_DIGEST_LENGTH];
-   struct stat sb;
+   int flags = 0;
    
-   rc = runfs_stat_proc_by_pid( pid, &proc_path, &sb );
-   if( rc != 0 ) {
-      
-      rc = -errno;
-      return rc;
+   if( verify_discipline & RUNFS_VERIFY_HASH ) {
+      flags |= PSTAT_HASH;
    }
    
    if( verify_discipline & RUNFS_VERIFY_INODE ) {
-      if( inode->proc_inode != sb.st_ino ) {
+      if( inode->ps.bin_stat.st_ino != proc_stat->bin_stat.st_ino ) {
          
-         free( proc_path );
          return 0;
       }
    }
    
    if( verify_discipline & RUNFS_VERIFY_SIZE ) {
-      if( inode->proc_size != sb.st_size ) {
+      if( inode->ps.bin_stat.st_size != proc_stat->bin_stat.st_size ) {
          
-         free( proc_path );
          return 0;
       }
    }
    
    if( verify_discipline & RUNFS_VERIFY_MTIME ) {
-      if( inode->proc_mtime.tv_sec != sb.st_mtim.tv_sec || inode->proc_mtime.tv_nsec != sb.st_mtim.tv_nsec ) {
+      if( inode->ps.bin_stat.st_mtim.tv_sec != proc_stat->bin_stat.st_mtim.tv_sec || inode->ps.bin_stat.st_mtim.tv_nsec != proc_stat->bin_stat.st_mtim.tv_nsec ) {
          
-         free( proc_path );
          return 0;
       }
    }
    
    if( verify_discipline & RUNFS_VERIFY_PATH ) {
-      if( strcmp(proc_path, inode->proc_path) != 0 ) {
+      if( strcmp(proc_stat->path, inode->ps.path) != 0 ) {
          
-         free( proc_path );
          return 0;
       }
    }
    
    if( verify_discipline & RUNFS_VERIFY_HASH ) {
-      
-      // first get the hash...
-      rc = runfs_sha256( proc_path, proc_sha256 );
-      if( rc != 0 ) {
-      
-         free( proc_path );
-         return rc;
-      }
-      
-      // then compare it 
-      if( memcmp( proc_sha256, inode->proc_sha256, SHA256_DIGEST_LENGTH ) != 0 ) {
+      if( memcmp( proc_stat->sha256, inode->ps.sha256, SHA256_DIGEST_LENGTH ) != 0 ) {
          
-         free( proc_path );
          return 0;
       }
    }
@@ -229,13 +99,21 @@ int runfs_inode_is_created_by_proc( struct runfs_inode* inode, pid_t pid, int ve
 int runfs_inode_is_valid( struct runfs_inode* inode, pid_t pid ) {
    
    int rc = 0;
+   struct pstat ps;
+   int flags = 0;
    
-   rc = runfs_os_is_proc_running( pid );
+   memset( &ps, 0, sizeof(struct pstat) );
+   
+   if( inode->verify_discipline & RUNFS_VERIFY_HASH ) {
+      flags |= PSTAT_HASH;
+   }
+   
+   rc = pstat( pid, &ps, flags );
    if( rc <= 0 ) {
       return rc;
    }
    
-   rc = runfs_inode_is_created_by_proc( inode, pid, inode->verify_discipline );
+   rc = runfs_inode_is_created_by_proc( inode, &ps, inode->verify_discipline );
    if( rc <= 0 ) {
       return rc;
    }
@@ -245,12 +123,6 @@ int runfs_inode_is_valid( struct runfs_inode* inode, pid_t pid ) {
 
 // free a pid inode
 int runfs_inode_free( struct runfs_inode* inode ) {
-   
-   if( inode->proc_path != NULL ) {
-      
-      free( inode->proc_path );
-      inode->proc_path = NULL;
-   }
    
    if( inode->contents != NULL ) {
       

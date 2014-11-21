@@ -212,10 +212,10 @@ int runfs_stat( struct fskit_core* core, struct fskit_match_group* grp, struct f
       return -ENOENT;
    }
    
-   rc = runfs_inode_is_valid( inode, inode->pid );
+   rc = runfs_inode_is_valid( inode, inode->ps.pid );
    if( rc < 0 ) {
       
-      fskit_error( "runfs_inode_is_valid(path=%s, pid=%d) rc = %d\n", inode->proc_path, inode->pid, rc );
+      fskit_error( "runfs_inode_is_valid(path=%s, pid=%d) rc = %d\n", inode->ps.path, inode->ps.pid, rc );
       return -EIO;
    }
    
@@ -287,10 +287,10 @@ int runfs_readdir( struct fskit_core* core, struct fskit_match_group* grp, struc
       }
       
       // is this file still valid?
-      int valid = runfs_inode_is_valid( inode, inode->pid );
+      int valid = runfs_inode_is_valid( inode, inode->ps.pid );
       if( valid < 0 ) {
          
-         fskit_error( "runfs_inode_is_valid(path=%s, pid=%d) rc = %d\n", inode->proc_path, inode->pid, valid );
+         fskit_error( "runfs_inode_is_valid(path=%s, pid=%d) rc = %d\n", inode->ps.path, inode->ps.pid, valid );
          fskit_entry_unlock( child );
          
          rc = -EIO;

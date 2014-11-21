@@ -21,6 +21,9 @@
 
 #include "util.h"
 #include "fskit/fskit.h"
+
+#include "pstat/libpstat.h"
+
 #include <openssl/sha.h>
 
 #define RUNFS_PIDFILE_BUF_LEN   50
@@ -37,13 +40,8 @@
 
 // information for an inode
 struct runfs_inode {
-   pid_t pid;                                           // the pid of the process
-   char* proc_path;                                     // path to the process.  set to NULL if not initialized   
    
-   struct timespec proc_mtime;                          // modtime of the process.
-   unsigned char proc_sha256[SHA256_DIGEST_LENGTH];     // sha256 of the process image.  Ignored if the RUNFS_VERIFY_HASH bit is not set in verify_discipline
-   off_t proc_size;                                     // size of the process binary
-   ino_t proc_inode;                                    // inode number of the binary
+   struct pstat ps;                                     // process owner status
    
    char* contents;                                      // contents of the file
    off_t size;                                          // size of the file
