@@ -4,6 +4,9 @@ import sys
 import os 
 import time
 
+pid = os.getpid()
+print "PID = %s"  % pid 
+
 pidfile_path = sys.argv[1]
 
 os.mkdir(pidfile_path, 0755)
