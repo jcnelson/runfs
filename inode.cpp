@@ -51,37 +51,54 @@ int runfs_inode_is_created_by_proc( struct runfs_inode* inode, struct pstat* pro
       flags |= PSTAT_HASH;
    }
    
+   if( !proc_stat->running ) {
+   
+      fskit_debug("PID %d is not running\n", proc_stat->pid );
+      return 0;
+   }
+   
+   if( proc_stat->pid != inode->ps.pid ) {
+      
+      fskit_debug("PID mismatch: %d != %d\n", inode->ps.pid, proc_stat->pid );
+      return 0;
+   }
+   
    if( verify_discipline & RUNFS_VERIFY_INODE ) {
-      if( inode->ps.bin_stat.st_ino != proc_stat->bin_stat.st_ino ) {
+      if( proc_stat->deleted || inode->ps.bin_stat.st_ino != proc_stat->bin_stat.st_ino ) {
          
+         fskit_debug("%d: Inode mismatch: %ld != %ld\n", inode->ps.pid, inode->ps.bin_stat.st_ino, proc_stat->bin_stat.st_ino );
          return 0;
       }
    }
    
    if( verify_discipline & RUNFS_VERIFY_SIZE ) {
-      if( inode->ps.bin_stat.st_size != proc_stat->bin_stat.st_size ) {
+      if( proc_stat->deleted || inode->ps.bin_stat.st_size != proc_stat->bin_stat.st_size ) {
          
+         fskit_debug("%d: Size mismatch: %jd != %jd\n", inode->ps.pid, inode->ps.bin_stat.st_size, proc_stat->bin_stat.st_size );
          return 0;
       }
    }
    
    if( verify_discipline & RUNFS_VERIFY_MTIME ) {
-      if( inode->ps.bin_stat.st_mtim.tv_sec != proc_stat->bin_stat.st_mtim.tv_sec || inode->ps.bin_stat.st_mtim.tv_nsec != proc_stat->bin_stat.st_mtim.tv_nsec ) {
+      if( proc_stat->deleted || inode->ps.bin_stat.st_mtim.tv_sec != proc_stat->bin_stat.st_mtim.tv_sec || inode->ps.bin_stat.st_mtim.tv_nsec != proc_stat->bin_stat.st_mtim.tv_nsec ) {
          
+         fskit_debug("%d: Modtime mismatch: %ld.%d != %ld.%d\n", inode->ps.pid, inode->ps.bin_stat.st_mtim.tv_sec, inode->ps.bin_stat.st_mtim.tv_nsec, proc_stat->bin_stat.st_mtim.tv_sec, proc_stat->bin_stat.st_mtim.tv_nsec );
          return 0;
       }
    }
    
    if( verify_discipline & RUNFS_VERIFY_PATH ) {
-      if( strcmp(proc_stat->path, inode->ps.path) != 0 ) {
+      if( proc_stat->deleted || strcmp(proc_stat->path, inode->ps.path) != 0 ) {
          
+         fskit_debug("%d: Path mismatch: %s != %s\n", inode->ps.pid, inode->ps.path, proc_stat->path );
          return 0;
       }
    }
    
    if( verify_discipline & RUNFS_VERIFY_HASH ) {
-      if( memcmp( proc_stat->sha256, inode->ps.sha256, SHA256_DIGEST_LENGTH ) != 0 ) {
+      if( proc_stat->deleted || memcmp( proc_stat->sha256, inode->ps.sha256, SHA256_DIGEST_LENGTH ) != 0 ) {
          
+         fskit_debug("%d: Hash mismatch\n", inode->ps.pid );
          return 0;
       }
    }
@@ -109,16 +126,18 @@ int runfs_inode_is_valid( struct runfs_inode* inode, pid_t pid ) {
    }
    
    rc = pstat( pid, &ps, flags );
-   if( rc <= 0 ) {
+   if( rc < 0 ) {
+      fskit_error("pstat(%d) rc = %d\n", pid, rc );
       return rc;
    }
    
    rc = runfs_inode_is_created_by_proc( inode, &ps, inode->verify_discipline );
-   if( rc <= 0 ) {
+   if( rc < 0 ) {
+      fskit_error("runfs_inode_is_created_by_proc(%d) rc = %d\n", pid, rc );
       return rc;
    }
    
-   return 1;
+   return rc;
 }
 
 // free a pid inode
