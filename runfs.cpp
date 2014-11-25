@@ -201,7 +201,7 @@ int runfs_stat( struct fskit_core* core, struct fskit_match_group* grp, struct f
    fskit_debug("runfs_stat(%s) from %d\n", grp->path, fskit_fuse_get_pid() );
    
    int rc = 0;
-   struct runfs_state* state = (struct runfs_state*)fskit_core_get_user_data( core );
+   // struct runfs_state* state = (struct runfs_state*)fskit_core_get_user_data( core );
    struct runfs_inode* inode = (struct runfs_inode*)fskit_entry_get_user_data( fent );
    
    if( inode == NULL ) {
@@ -209,6 +209,7 @@ int runfs_stat( struct fskit_core* core, struct fskit_match_group* grp, struct f
    }
    
    if( inode->deleted ) {
+      fskit_debug("%s was deleted\n", grp->path);
       return -ENOENT;
    }
    
@@ -221,10 +222,17 @@ int runfs_stat( struct fskit_core* core, struct fskit_match_group* grp, struct f
    
    if( rc == 0 ) {
       
-      // no longer valid 
+      // no longer valid--totally remove from the filesystem
       inode->deleted = true;
-      runfs_state_sched_delete( state, grp->path, fent->file_id, fent->type == FSKIT_ENTRY_TYPE_DIR );
       
+      if( fent->type == FSKIT_ENTRY_TYPE_DIR ) {
+         fskit_deferred_remove_all( core, grp->path, fent );
+      }
+      else {
+         fskit_deferred_remove( core, grp->path, fent );
+      }
+      
+      fskit_debug("%s is no longer valid (PID %d)\n", grp->path, inode->ps.pid);
       rc = -ENOENT;
    }
    else {
@@ -243,15 +251,9 @@ int runfs_readdir( struct fskit_core* core, struct fskit_match_group* grp, struc
    int rc = 0;
    struct fskit_entry* child = NULL;
    struct runfs_inode* inode = NULL;
-   struct runfs_state* state = (struct runfs_state*)fskit_core_get_user_data( core );
    
    // entries to omit in the listing
    vector<int> omitted_idx;
-   
-   // paths and inodes and types to remove (NOTE: kept in 1-to-1 correspondence)
-   vector<char*> to_remove_paths;
-   vector<uint64_t> to_remove_inodes;
-   vector<int> to_remove_types;
    
    for( unsigned int i = 0; i < num_dirents; i++ ) {
       
@@ -308,26 +310,20 @@ int runfs_readdir( struct fskit_core* core, struct fskit_match_group* grp, struc
             break;
          }
          
-         to_remove_inodes.push_back( child->file_id );
-         to_remove_paths.push_back( child_fp );
-         to_remove_types.push_back( child->type );
+         // totally remove from the filesystem
+         if( child->type == FSKIT_ENTRY_TYPE_DIR ) {
+            fskit_deferred_remove_all( core, child_fp, child );
+         }
+         else {
+            fskit_deferred_remove( core, child_fp, child );
+         }
+         
+         free( child_fp );
          
          omitted_idx.push_back( i );
       }
       
       fskit_entry_unlock( child );
-   }
-   
-   // remove any invalid nodes (including invalid trees)
-   for( unsigned int i = 0; i < to_remove_paths.size(); i++ ) {
-      
-      runfs_state_sched_delete( state, to_remove_paths[i], to_remove_inodes[i], to_remove_types[i] == FSKIT_ENTRY_TYPE_DIR );
-   }
-   
-   // free memory 
-   for( unsigned int i = 0; i < to_remove_paths.size(); i++ ) {
-      
-      free( to_remove_paths[i] );
    }
    
    for( unsigned int i = 0; i < omitted_idx.size(); i++ ) {
@@ -344,10 +340,9 @@ int main( int argc, char** argv ) {
    int rc = 0;
    int rh = 0;
    struct fskit_fuse_state state;
-   struct runfs_state runfs;
    struct fskit_core* core = NULL;
    
-   rc = fskit_fuse_init( &state, &runfs );
+   rc = fskit_fuse_init( &state, NULL );
    if( rc != 0 ) {
       fprintf(stderr, "fskit_fuse_init rc = %d\n", rc );
       exit(1);
@@ -357,12 +352,6 @@ int main( int argc, char** argv ) {
    fskit_fuse_setting_enable( &state, FSKIT_FUSE_SET_FS_ACCESS );
    
    core = fskit_fuse_get_core( &state );
-   
-   rc = runfs_state_init( &runfs, core );
-   if( rc != 0 ) {
-      fprintf(stderr, "runfs_state_init() rc = %d\n", rc );
-      exit(1);
-   }
    
    // add handlers.  reads and writes must happen sequentially, since we seek and then perform I/O
    // NOTE: FSKIT_ROUTE_ANY matches any path, and is a macro for the regex "/([^/]+[/]*)+"
@@ -421,7 +410,6 @@ int main( int argc, char** argv ) {
    rc = fskit_fuse_main( &state, argc, argv );
    
    // shutdown
-   runfs_state_shutdown( &runfs );
    fskit_fuse_shutdown( &state, NULL );
    
    return rc;

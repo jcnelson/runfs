@@ -25,6 +25,5 @@
 #include "inode.h"
 #include "os.h"
 #include "util.h"
-#include "state.h"
 
 #endif
