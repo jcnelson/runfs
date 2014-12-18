@@ -18,9 +18,7 @@
 
 #include "runfs.h"
 
-int runfs_create( struct fskit_core* core, struct fskit_match_group* grp, struct fskit_entry* fent, mode_t mode, void** inode_data, void** handle_data ) {
-   
-   fskit_debug("runfs_create(%s) from %d\n", grp->path, fskit_fuse_get_pid() );
+static int runfs_make_inode( struct fskit_core* core, struct fskit_match_group* grp, struct fskit_entry* fent, mode_t mode, void** inode_data ) {
    
    int rc = 0;
    pid_t calling_tid = fskit_fuse_get_pid();
@@ -39,7 +37,14 @@ int runfs_create( struct fskit_core* core, struct fskit_match_group* grp, struct
    
    *inode_data = (void*)inode;
    
-   return 0;
+   return rc;
+}
+
+int runfs_create( struct fskit_core* core, struct fskit_match_group* grp, struct fskit_entry* fent, mode_t mode, void** inode_data, void** handle_data ) {
+   
+   fskit_debug("runfs_create(%s) from %d\n", grp->path, fskit_fuse_get_pid() );
+   
+   return runfs_make_inode( core, grp, fent, mode, inode_data );
 }
 
 // track sockets, etc.
@@ -47,24 +52,7 @@ int runfs_mknod( struct fskit_core* core, struct fskit_match_group* grp, struct 
    
    fskit_debug("runfs_mknod(%s) from %d\n", grp->path, fskit_fuse_get_pid() );
    
-   int rc = 0;
-   pid_t calling_tid = fskit_fuse_get_pid();
-   struct runfs_inode* inode = RUNFS_CALLOC( struct runfs_inode, 1 );
-   
-   if( inode == NULL ) {
-      return -ENOMEM;
-   }
-   
-   rc = runfs_inode_init( inode, calling_tid, RUNFS_VERIFY_DEFAULT );
-   if( rc != 0 ) {
-      // phantom process?
-      free( inode );
-      return rc;
-   }
-   
-   *inode_data = (void*)inode;
-   
-   return 0;
+   return runfs_make_inode( core, grp, fent, mode, inode_data );
 }
 
 // track directories 
@@ -72,24 +60,7 @@ int runfs_mkdir( struct fskit_core* core, struct fskit_match_group* grp, struct 
    
    fskit_debug("runfs_mkdir(%s) from %d\n", grp->path, fskit_fuse_get_pid() );
    
-   int rc = 0;
-   pid_t calling_tid = fskit_fuse_get_pid();
-   struct runfs_inode* inode = RUNFS_CALLOC( struct runfs_inode, 1 );
-   
-   if( inode == NULL ) {
-      return -ENOMEM;
-   }
-   
-   rc = runfs_inode_init( inode, calling_tid, RUNFS_VERIFY_DEFAULT );
-   if( rc != 0 ) {
-      // phantom process?
-      free( inode );
-      return rc;
-   }
-   
-   *inode_data = (void*)inode;
-   
-   return 0;
+   return runfs_make_inode( core, grp, dent, mode, inode_data );
 }
 
 
@@ -201,7 +172,6 @@ int runfs_stat( struct fskit_core* core, struct fskit_match_group* grp, struct f
    fskit_debug("runfs_stat(%s) from %d\n", grp->path, fskit_fuse_get_pid() );
    
    int rc = 0;
-   // struct runfs_state* state = (struct runfs_state*)fskit_core_get_user_data( core );
    struct runfs_inode* inode = (struct runfs_inode*)fskit_entry_get_user_data( fent );
    
    if( inode == NULL ) {
@@ -263,7 +233,7 @@ int runfs_readdir( struct fskit_core* core, struct fskit_match_group* grp, struc
       }
       
       // find the associated fskit_entry
-      child = fskit_entry_set_find_name( fent->children, dirents[i]->name );
+      child = fskit_dir_find_by_name( fent, dirents[i]->name );
       
       if( child == NULL ) {
          // strange, shouldn't happen...
