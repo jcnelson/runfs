@@ -8,13 +8,17 @@ DEFS  := -D_REENTRANT -D_THREAD_SAFE -D__STDC_FORMAT_MACROS -D_FILE_OFFSET_BITS=
 
 RUNFS := runfs
 
-DESTDIR = /
-BIN_DIR = /usr/local/bin
+PREFIX ?= /usr
+BINDIR ?= $(PREFIX)/bin
 
 all: runfs
 
 runfs: $(OBJ)
 	$(CPP) -o $(RUNFS) $(OBJ) $(LIBINC) $(LIB)
+
+install: runfs
+	mkdir -p $(BINDIR)
+	cp -a $(RUNFS) $(BINDIR)
 
 %.o : %.c
 	$(CPP) -o $@ $(INC) -c $< $(DEFS)
