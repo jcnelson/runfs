@@ -26,10 +26,6 @@ int runfs_inode_init( struct runfs_inode* inode, pid_t pid, int verify_disciplin
    int rc = 0;
    int flags = 0;
    
-   if( verify_discipline & RUNFS_VERIFY_HASH ) {
-      flags |= PSTAT_HASH;
-   }
-   
    rc = pstat( pid, &inode->ps, flags );
    if( rc != 0 ) {
       return rc;
@@ -46,12 +42,6 @@ int runfs_inode_init( struct runfs_inode* inode, pid_t pid, int verify_disciplin
 // return 1 if equal 
 // return negative on error
 int runfs_inode_is_created_by_proc( struct runfs_inode* inode, struct pstat* proc_stat, int verify_discipline ) {
-   
-   int flags = 0;
-   
-   if( verify_discipline & RUNFS_VERIFY_HASH ) {
-      flags |= PSTAT_HASH;
-   }
    
    if( !proc_stat->running ) {
    
@@ -96,15 +86,7 @@ int runfs_inode_is_created_by_proc( struct runfs_inode* inode, struct pstat* pro
          return 0;
       }
    }
-   
-   if( verify_discipline & RUNFS_VERIFY_HASH ) {
-      if( proc_stat->deleted || memcmp( proc_stat->sha256, inode->ps.sha256, SHA256_DIGEST_LENGTH ) != 0 ) {
-         
-         fskit_debug("%d: Hash mismatch\n", inode->ps.pid );
-         return 0;
-      }
-   }
-   
+      
    return 1;
 }
 
@@ -119,15 +101,10 @@ int runfs_inode_is_valid( struct runfs_inode* inode, pid_t pid ) {
    
    int rc = 0;
    struct pstat ps;
-   int flags = 0;
    
    memset( &ps, 0, sizeof(struct pstat) );
    
-   if( inode->verify_discipline & RUNFS_VERIFY_HASH ) {
-      flags |= PSTAT_HASH;
-   }
-   
-   rc = pstat( pid, &ps, flags );
+   rc = pstat( pid, &ps, 0 );
    if( rc < 0 ) {
       fskit_error("pstat(%d) rc = %d\n", pid, rc );
       return rc;

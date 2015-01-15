@@ -27,13 +27,10 @@
 
 #include "pstat/libpstat.h"
 
-#include <openssl/sha.h>
-
 #define RUNFS_PIDFILE_BUF_LEN   50
 
 #define RUNFS_VERIFY_INODE      0x1
 #define RUNFS_VERIFY_MTIME      0x2
-#define RUNFS_VERIFY_HASH       0x4
 #define RUNFS_VERIFY_SIZE       0x8
 #define RUNFS_VERIFY_PATH       0x10
 
