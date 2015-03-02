@@ -154,6 +154,53 @@ int runfs_write( struct fskit_core* core, struct fskit_match_group* grp, struct 
 }
 
 
+int runfs_truncate( struct fskit_core* core, struct fskit_match_group* grp, struct fskit_entry* fent, off_t new_size, void* inode_data ) {
+   
+   fskit_debug("runfs_truncate(%s) from %d\n", grp->path, fskit_fuse_get_pid() );
+   
+   struct runfs_inode* inode = (struct runfs_inode*)fskit_entry_get_user_data( fent );
+   size_t new_contents_len = inode->contents_len;
+   
+   if( inode == NULL ) {
+      return -ENOSYS;
+   }
+   
+   // expand?
+   if( (unsigned)new_size >= inode->contents_len ) {
+      
+      if( new_contents_len == 0 ) {
+         new_contents_len = 1;
+      }
+      
+      while( (unsigned)new_size > new_contents_len ) {
+         
+         new_contents_len *= 2;
+      }
+      
+      char* tmp = (char*)realloc( inode->contents, new_contents_len );
+      
+      if( tmp == NULL ) {
+         return -ENOMEM;
+      }
+      
+      inode->contents = tmp;
+      
+      memset( inode->contents + inode->contents_len, 0, new_contents_len - inode->contents_len );
+      
+      inode->contents_len = new_contents_len;
+   }
+   else {
+      
+      memset( inode->contents + new_size, 0, inode->contents_len - new_size );
+   }
+   
+   // new size 
+   inode->size = new_size;
+   
+   return 0;
+}
+
+
 int runfs_detach( struct fskit_core* core, struct fskit_match_group* grp, struct fskit_entry* fent, void* inode_data ) {
    
    fskit_debug("runfs_detach(%s) from %d\n", grp->path, fskit_fuse_get_pid() );
@@ -364,6 +411,12 @@ int main( int argc, char** argv ) {
       exit(1);
    }
    
+   rh = fskit_route_trunc( core, FSKIT_ROUTE_ANY, runfs_truncate, FSKIT_INODE_SEQUENTIAL );
+   if( rh < 0 ) {
+      fprintf(stderr, "fskit_route_trunc(%s) rc = %d\n", FSKIT_ROUTE_ANY, rh );
+      exit(1);
+   }
+      
    rh = fskit_route_detach( core, FSKIT_ROUTE_ANY, runfs_detach, FSKIT_CONCURRENT );
    if( rh < 0 ) {
       fprintf(stderr, "fskit_route_detach(%s) rc = %d\n", FSKIT_ROUTE_ANY, rh );
