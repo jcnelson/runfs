@@ -245,7 +245,7 @@ int runfs_stat( struct fskit_core* core, struct fskit_match_group* grp, struct f
       // no longer valid--totally remove from the filesystem
       inode->deleted = true;
       
-      if( fent->type == FSKIT_ENTRY_TYPE_DIR ) {
+      if( fskit_entry_get_type( fent ) == FSKIT_ENTRY_TYPE_DIR ) {
          fskit_deferred_remove_all( core, grp->path, fent );
       }
       else {
@@ -324,14 +324,23 @@ int runfs_readdir( struct fskit_core* core, struct fskit_match_group* grp, struc
          // not valid--unlink
          inode->deleted = true;
          
-         char* child_fp = fskit_fullpath( grp->path, child->name, NULL );
+         char* child_name = fskit_entry_get_name( child );
+         if( child_name == NULL ) {
+            rc = -ENOMEM;
+            break;
+         }
+         
+         char* child_fp = fskit_fullpath( grp->path, child_name, NULL );
+         
+         free( child_name );
+         
          if( child_fp == NULL ) {
             rc = -ENOMEM;
             break;
          }
          
          // totally remove from the filesystem
-         if( child->type == FSKIT_ENTRY_TYPE_DIR ) {
+         if( fskit_entry_get_type( child ) == FSKIT_ENTRY_TYPE_DIR ) {
             fskit_deferred_remove_all( core, child_fp, child );
          }
          else {
