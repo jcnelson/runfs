@@ -21,7 +21,7 @@
 
 #include "runfs.h"
 
-static int runfs_make_inode( struct fskit_core* core, struct fskit_match_group* grp, struct fskit_entry* fent, mode_t mode, void** inode_data ) {
+static int runfs_make_inode( struct fskit_core* core, struct fskit_route_metadata* route_metadata, struct fskit_entry* fent, mode_t mode, void** inode_data ) {
    
    int rc = 0;
    pid_t calling_tid = fskit_fuse_get_pid();
@@ -43,33 +43,33 @@ static int runfs_make_inode( struct fskit_core* core, struct fskit_match_group* 
    return rc;
 }
 
-int runfs_create( struct fskit_core* core, struct fskit_match_group* grp, struct fskit_entry* fent, mode_t mode, void** inode_data, void** handle_data ) {
+int runfs_create( struct fskit_core* core, struct fskit_route_metadata* route_metadata, struct fskit_entry* fent, mode_t mode, void** inode_data, void** handle_data ) {
    
-   fskit_debug("runfs_create(%s) from %d\n", grp->path, fskit_fuse_get_pid() );
+   fskit_debug("runfs_create(%s) from %d\n", fskit_route_metadata_path( route_metadata ), fskit_fuse_get_pid() );
    
-   return runfs_make_inode( core, grp, fent, mode, inode_data );
+   return runfs_make_inode( core, route_metadata, fent, mode, inode_data );
 }
 
 // track sockets, etc.
-int runfs_mknod( struct fskit_core* core, struct fskit_match_group* grp, struct fskit_entry* fent, mode_t mode, dev_t dev, void** inode_data ) {
+int runfs_mknod( struct fskit_core* core, struct fskit_route_metadata* route_metadata, struct fskit_entry* fent, mode_t mode, dev_t dev, void** inode_data ) {
    
-   fskit_debug("runfs_mknod(%s) from %d\n", grp->path, fskit_fuse_get_pid() );
+   fskit_debug("runfs_mknod(%s) from %d\n", fskit_route_metadata_path( route_metadata ), fskit_fuse_get_pid() );
    
-   return runfs_make_inode( core, grp, fent, mode, inode_data );
+   return runfs_make_inode( core, route_metadata, fent, mode, inode_data );
 }
 
 // track directories 
-int runfs_mkdir( struct fskit_core* core, struct fskit_match_group* grp, struct fskit_entry* dent, mode_t mode, void** inode_data ) {
+int runfs_mkdir( struct fskit_core* core, struct fskit_route_metadata* route_metadata, struct fskit_entry* dent, mode_t mode, void** inode_data ) {
    
-   fskit_debug("runfs_mkdir(%s) from %d\n", grp->path, fskit_fuse_get_pid() );
+   fskit_debug("runfs_mkdir(%s) from %d\n", fskit_route_metadata_path( route_metadata ), fskit_fuse_get_pid() );
    
-   return runfs_make_inode( core, grp, dent, mode, inode_data );
+   return runfs_make_inode( core, route_metadata, dent, mode, inode_data );
 }
 
 
-int runfs_read( struct fskit_core* core, struct fskit_match_group* grp, struct fskit_entry* fent, char* buf, size_t buflen, off_t offset, void* handle_data ) {
+int runfs_read( struct fskit_core* core, struct fskit_route_metadata* route_metadata, struct fskit_entry* fent, char* buf, size_t buflen, off_t offset, void* handle_data ) {
    
-   fskit_debug("runfs_read(%s) from %d\n", grp->path, fskit_fuse_get_pid() );
+   fskit_debug("runfs_read(%s) from %d\n", fskit_route_metadata_path( route_metadata ), fskit_fuse_get_pid() );
    
    struct runfs_inode* inode = (struct runfs_inode*)fskit_entry_get_user_data( fent );
    int num_read = 0;
@@ -106,9 +106,9 @@ int runfs_read( struct fskit_core* core, struct fskit_match_group* grp, struct f
 }
 
 
-int runfs_write( struct fskit_core* core, struct fskit_match_group* grp, struct fskit_entry* fent, char* buf, size_t buflen, off_t offset, void* handle_data ) {
+int runfs_write( struct fskit_core* core, struct fskit_route_metadata* route_metadata, struct fskit_entry* fent, char* buf, size_t buflen, off_t offset, void* handle_data ) {
    
-   fskit_debug("runfs_write(%s) from %d\n", grp->path, fskit_fuse_get_pid() );
+   fskit_debug("runfs_write(%s) from %d\n", fskit_route_metadata_path( route_metadata ), fskit_fuse_get_pid() );
    
    struct runfs_inode* inode = (struct runfs_inode*)fskit_entry_get_user_data( fent );
    size_t new_contents_len = inode->contents_len;
@@ -154,9 +154,9 @@ int runfs_write( struct fskit_core* core, struct fskit_match_group* grp, struct 
 }
 
 
-int runfs_truncate( struct fskit_core* core, struct fskit_match_group* grp, struct fskit_entry* fent, off_t new_size, void* inode_data ) {
+int runfs_truncate( struct fskit_core* core, struct fskit_route_metadata* route_metadata, struct fskit_entry* fent, off_t new_size, void* inode_data ) {
    
-   fskit_debug("runfs_truncate(%s) from %d\n", grp->path, fskit_fuse_get_pid() );
+   fskit_debug("runfs_truncate(%s) from %d\n", fskit_route_metadata_path( route_metadata ), fskit_fuse_get_pid() );
    
    struct runfs_inode* inode = (struct runfs_inode*)fskit_entry_get_user_data( fent );
    size_t new_contents_len = inode->contents_len;
@@ -201,9 +201,9 @@ int runfs_truncate( struct fskit_core* core, struct fskit_match_group* grp, stru
 }
 
 
-int runfs_detach( struct fskit_core* core, struct fskit_match_group* grp, struct fskit_entry* fent, void* inode_data ) {
+int runfs_detach( struct fskit_core* core, struct fskit_route_metadata* route_metadata, struct fskit_entry* fent, void* inode_data ) {
    
-   fskit_debug("runfs_detach(%s) from %d\n", grp->path, fskit_fuse_get_pid() );
+   fskit_debug("runfs_detach(%s) from %d\n", fskit_route_metadata_path( route_metadata ), fskit_fuse_get_pid() );
    
    struct runfs_inode* inode = (struct runfs_inode*)inode_data;
    
@@ -217,9 +217,9 @@ int runfs_detach( struct fskit_core* core, struct fskit_match_group* grp, struct
 
 // stat an entry 
 // remove the entry if its creating process has died
-int runfs_stat( struct fskit_core* core, struct fskit_match_group* grp, struct fskit_entry* fent, struct stat* sb ) {
+int runfs_stat( struct fskit_core* core, struct fskit_route_metadata* route_metadata, struct fskit_entry* fent, struct stat* sb ) {
    
-   fskit_debug("runfs_stat(%s) from %d\n", grp->path, fskit_fuse_get_pid() );
+   fskit_debug("runfs_stat(%s) from %d\n", fskit_route_metadata_path( route_metadata ), fskit_fuse_get_pid() );
    
    int rc = 0;
    struct runfs_inode* inode = (struct runfs_inode*)fskit_entry_get_user_data( fent );
@@ -229,7 +229,7 @@ int runfs_stat( struct fskit_core* core, struct fskit_match_group* grp, struct f
    }
    
    if( inode->deleted ) {
-      fskit_debug("%s was deleted\n", grp->path);
+      fskit_debug("%s was deleted\n", fskit_route_metadata_path( route_metadata ));
       return -ENOENT;
    }
    
@@ -246,13 +246,13 @@ int runfs_stat( struct fskit_core* core, struct fskit_match_group* grp, struct f
       inode->deleted = true;
       
       if( fskit_entry_get_type( fent ) == FSKIT_ENTRY_TYPE_DIR ) {
-         fskit_deferred_remove_all( core, grp->path, fent );
+         fskit_deferred_remove_all( core, fskit_route_metadata_path( route_metadata ), fent );
       }
       else {
-         fskit_deferred_remove( core, grp->path, fent );
+         fskit_deferred_remove( core, fskit_route_metadata_path( route_metadata ), fent );
       }
       
-      fskit_debug("%s is no longer valid (PID %d)\n", grp->path, inode->ps.pid);
+      fskit_debug("%s is no longer valid (PID %d)\n", fskit_route_metadata_path( route_metadata ), inode->ps.pid);
       rc = -ENOENT;
    }
    else {
@@ -264,9 +264,9 @@ int runfs_stat( struct fskit_core* core, struct fskit_match_group* grp, struct f
 
 // read a directory
 // stat each node in it, and remove ones whose creating process has died
-int runfs_readdir( struct fskit_core* core, struct fskit_match_group* grp, struct fskit_entry* fent, struct fskit_dir_entry** dirents, size_t num_dirents ) {
+int runfs_readdir( struct fskit_core* core, struct fskit_route_metadata* route_metadata, struct fskit_entry* fent, struct fskit_dir_entry** dirents, size_t num_dirents ) {
    
-   fskit_debug("runfs_readdir(%s, %zu) from %d\n", grp->path, num_dirents, fskit_fuse_get_pid() );
+   fskit_debug("runfs_readdir(%s, %zu) from %d\n", fskit_route_metadata_path( route_metadata ), num_dirents, fskit_fuse_get_pid() );
    
    int rc = 0;
    struct fskit_entry* child = NULL;
@@ -330,7 +330,7 @@ int runfs_readdir( struct fskit_core* core, struct fskit_match_group* grp, struc
             break;
          }
          
-         char* child_fp = fskit_fullpath( grp->path, child_name, NULL );
+         char* child_fp = fskit_fullpath( fskit_route_metadata_path( route_metadata ), child_name, NULL );
          
          free( child_name );
          
