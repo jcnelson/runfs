@@ -1,6 +1,6 @@
 /*
    runfs: a self-cleaning filesystem for runtime state.
-   Copyright (C) 2014  Jude Nelson
+   Copyright (C) 2015  Jude Nelson
 
    This program is dual-licensed: you can redistribute it and/or modify
    it under the terms of the GNU General Public License version 3 or later as 
@@ -25,8 +25,16 @@
 #include "fskit/fskit.h"
 #include "fskit/fuse/fskit_fuse.h"
 
+#include "deferred.h"
 #include "inode.h"
 #include "os.h"
 #include "util.h"
+#include "wq.h"
+
+struct runfs_state {
+    
+    struct fskit_core* core;
+    struct runfs_wq* deferred_unlink_wq;
+};
 
 #endif
