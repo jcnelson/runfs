@@ -1,6 +1,6 @@
 /*
    runfs: a self-cleaning filesystem for runtime state.
-   Copyright (C) 2014  Jude Nelson
+   Copyright (C) 2015  Jude Nelson
 
    This program is dual-licensed: you can redistribute it and/or modify
    it under the terms of the GNU General Public License version 3 or later as 
@@ -24,5 +24,9 @@
 #include "os.h"
 
 #define RUNFS_CALLOC( type, nmemb ) (type*)calloc( sizeof(type), nmemb )
+
+#define runfs_debug fskit_debug 
+#define runfs_error fskit_error 
+#define runfs_safe_free(ptr) do { if( (ptr) != NULL ) { free( ptr ); (ptr) = NULL; } } while(0)
 
 #endif
