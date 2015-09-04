@@ -260,7 +260,7 @@ int runfs_stat( struct fskit_core* core, struct fskit_route_metadata* route_meta
    if( inode == NULL ) {
        
       fskit_entry_unlock( fent );
-      return 0;
+      return -ENOENT;
    }
    
    if( inode->deleted ) {
