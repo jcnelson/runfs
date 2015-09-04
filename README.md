@@ -1,12 +1,13 @@
 runfs
 =====
 
-Runfs is a self-cleaning in-RAM filesystem that allows a process to store temporary state in the filesystem over the course of its lifetime.  Once it dies, the filesystem removes its data.
+Runfs is a self-cleaning in-RAM filesystem where data shares fate with the process that creates it.  Once the process exits, the files it created in runfs are automatically unlinked, as well as its directories and all of their descendents.
 
-Features
---------
-* **Automatic lifecycle management**.  Daemons don't have to clean up after themselves if they crash.
-* **Portable design**.  OS-specific methods are cleanly separated from the OS-agnostic logic.
+Example Use-Cases
+-----------------
+* Store daemon PID files while guaranteeing that they always disappear when the daemon stops, *even if it crashes*.
+* Give cryptographic tools the use of the filesystem while guaranteeing that sensitive data becomes inaccessible once the tool exits.
+* Give your favorite build system a place to store its subprocess' temporary files while ensuring that a failed or interrupted build always starts clean.
 
 Dependencies
 ------------
@@ -27,7 +28,7 @@ To install:
 
         $ sudo make install
 
-By default, it will be installed to /usr/local/bin
+By default, runfs will be installed to `/usr/local/bin`.  You may set `PREFIX` to control the installation directory, and `DESTDIR` to set an alternate installation root.
 
 Running
 -------
