@@ -29,6 +29,8 @@ int runfs_inode_init( struct runfs_inode* inode, pid_t pid, int verify_disciplin
    int rc = 0;
    int flags = 0;
    
+   memset( inode, 0, sizeof(struct runfs_inode) );
+   
    inode->ps = pstat_new();
    if( inode->ps == NULL ) {
       return -ENOMEM;
