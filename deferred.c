@@ -70,10 +70,11 @@ static int runfs_deferred_remove_cb( struct runfs_wreq* wreq, void* cls ) {
       
       fskit_detach_ctx_free( dctx );
       runfs_safe_free( dctx );
+      
+      fskit_entry_set_free( ctx->children );
    }
 
    runfs_safe_free( ctx->fs_path );
-   fskit_entry_set_free( ctx->children );
    runfs_safe_free( ctx );
    
    return 0;
