@@ -226,9 +226,9 @@ int runfs_truncate( struct fskit_core* core, struct fskit_route_metadata* route_
 
 // remove a file or directory 
 // return 0 on success, and free up the given inode_data
-int runfs_detach( struct fskit_core* core, struct fskit_route_metadata* route_metadata, struct fskit_entry* fent, void* inode_data ) {
+int runfs_destroy( struct fskit_core* core, struct fskit_route_metadata* route_metadata, struct fskit_entry* fent, void* inode_data ) {
    
-   runfs_debug("runfs_detach('%s') from %d\n", fskit_route_metadata_get_path( route_metadata ), fskit_fuse_get_pid() );
+   runfs_debug("runfs_destroy('%s') from %d\n", fskit_route_metadata_get_path( route_metadata ), fskit_fuse_get_pid() );
    
    struct runfs_inode* inode = (struct runfs_inode*)inode_data;
    
@@ -474,9 +474,14 @@ int main( int argc, char** argv ) {
    
    int rc = 0;
    int rh = 0;
-   struct fskit_fuse_state state;
+   struct fskit_fuse_state* state = NULL;
    struct fskit_core* core = NULL;
    struct runfs_state runfs;
+   
+   state = fskit_fuse_state_new();
+   if( state == NULL ) {
+      exit(1);
+   }
    
    // setup runfs state 
    memset( &runfs, 0, sizeof(struct runfs_state) );
@@ -493,16 +498,16 @@ int main( int argc, char** argv ) {
    }
    
    // set up fskit state
-   rc = fskit_fuse_init( &state, &runfs );
+   rc = fskit_fuse_init( state, &runfs );
    if( rc != 0 ) {
       fprintf(stderr, "fskit_fuse_init rc = %d\n", rc );
       exit(1);
    }
    
    // make sure the fs can access its methods through the VFS
-   fskit_fuse_setting_enable( &state, FSKIT_FUSE_SET_FS_ACCESS );
+   fskit_fuse_setting_enable( state, FSKIT_FUSE_SET_FS_ACCESS );
    
-   core = fskit_fuse_get_core( &state );
+   core = fskit_fuse_get_core( state );
    
    // plug core into runfs
    runfs.core = core;
@@ -551,7 +556,7 @@ int main( int argc, char** argv ) {
       exit(1);
    }
       
-   rh = fskit_route_detach( core, FSKIT_ROUTE_ANY, runfs_detach, FSKIT_CONCURRENT );
+   rh = fskit_route_destroy( core, FSKIT_ROUTE_ANY, runfs_destroy, FSKIT_CONCURRENT );
    if( rh < 0 ) {
       fprintf(stderr, "fskit_route_detach(%s) rc = %d\n", FSKIT_ROUTE_ANY, rh );
       exit(1);
@@ -574,10 +579,11 @@ int main( int argc, char** argv ) {
    }
    
    // run 
-   rc = fskit_fuse_main( &state, argc, argv );
+   rc = fskit_fuse_main( state, argc, argv );
    
    // shutdown
-   fskit_fuse_shutdown( &state, NULL );
+   fskit_fuse_shutdown( state, NULL );
+   runfs_safe_free( state );
    
    runfs_wq_stop( runfs.deferred_unlink_wq );
    runfs_wq_free( runfs.deferred_unlink_wq );

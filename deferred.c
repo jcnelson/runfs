@@ -124,10 +124,7 @@ int runfs_deferred_remove( struct runfs_state* runfs, char const* child_path, st
        runfs_safe_free( ctx );
        runfs_safe_free( work );
        
-       char name[FSKIT_FILESYSTEM_NAMEMAX+1];
-       fskit_entry_copy_name( child, name, FSKIT_FILESYSTEM_NAMEMAX );
-       
-       runfs_error("fskit_entry_garbage_collect('%s') rc = %d\n", name, rc );
+       runfs_error("fskit_entry_garbage_collect('%s') rc = %d\n", child_path, rc );
        return rc;
    }
    
